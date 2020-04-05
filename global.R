@@ -236,8 +236,11 @@ resolution_predict <- function(cumulative_confirmed_vec, end_point = NULL, distr
     
   }
   
-  # Sum the density matrix by column to create a prediction for cumulative resolved cases
-  cumulative_resolution_vec = colSums(resolution_matrix)
+  # Sum the density matrix by column to create a prediction for number of new resolved cases each day
+  daily_resolution_vec = colSums(resolution_matrix)
+  
+  # Calculate the cumulative count (also adds the first day of the data, which will always have a prediction of 0)
+  cumulative_resolution_vec = diffinv(daily_resolution_vec)
 
   return(cumulative_resolution_vec)
   
@@ -267,14 +270,19 @@ resolution_dist_fit <- function(cumulative_confirmed_vec, cumulative_resolved_ve
           
           if(distribution == 'Lognormal'){
             density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(plnorm(c(0:(diff_length + 1 - i)), meanlog = x[1], sdlog = x[2]))
+            dof = diff_length - 2
           } else if(distribution == 'Exponential'){
             density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pexp(c(0:(diff_length + 1 - i)), rate = x[1]))
+            dof = diff_length - 1
           } else if(distribution == 'Poisson'){
             density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(ppois(c(0:(diff_length + 1 - i)), lambda = x[1]))
+            dof = diff_length - 1
           } else if(distribution == 'Weibull'){
             density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pweibull(c(0:(diff_length + 1 - i)), shape = x[1], scale = x[2]))
+            dof = diff_length - 2
           } else if(distribution == 'Negative Binomial'){
             density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pnbinom(c(0:(diff_length + 1 - i)), size = x[1], mu = x[2]))
+            dof = diff_length - 2
           }
           
         }
@@ -288,8 +296,9 @@ resolution_dist_fit <- function(cumulative_confirmed_vec, cumulative_resolved_ve
       tail_prob = 1 - sum(pdf_vec)
       
       # Calculate log likelihood of recovery vector
-      # return( -sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE))
-      return( -sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) - log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases)))
+      log_likelihood = sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) + log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases))
+      # return( -sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) - log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases)))
+      return( -log_likelihood)
     }
   
   # Set initial parameters for optimizer based on initial distribution
@@ -327,5 +336,16 @@ resolution_dist_fit <- function(cumulative_confirmed_vec, cumulative_resolved_ve
   
   # Return fitted distribution parameters
   return(optim_fit)
+  
+}
+
+
+fit_population_dynamic_model = function(cumulative_confirmed_vec, active_case_vec, population){
+  
+  # Create a dataframe with the existing dataset
+  dat = data.frame()
+  
+  # Create 
+  test_model= nlme()
   
 }

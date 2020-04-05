@@ -38,7 +38,7 @@ shinyUI(fluidPage(
            fluidRow(
              column(3, checkboxInput('y_log_scale_data', label = 'Apply log scaling to y-axis', value = FALSE)),
              column(3, checkboxInput('simulate_recovery_data', label = 'Simulate resolution data', value = FALSE)),
-             column(3, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Lognormal", "Exponential", "Poisson", "Weibull", "Negative Binomial"), selected = "Lognormal")),
+             column(3, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Weibull", "Lognormal", "Exponential", "Poisson", "Negative Binomial"), selected = "Weibull")),
              column(3, numericInput('mean_recovery_days', label = 'Mean time to recovery for simulation', value = 21)),
            ),
            
