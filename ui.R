@@ -45,6 +45,9 @@ shinyUI(fluidPage(
            h3("Plot of new cases for the selected region(s)."),
            plotlyOutput("obs_data_plot"),
            
+           h3("Fitted resolution time quantiles based on simulated distribution (if simulation is selected)"),
+           tableOutput('resolution_time_quantiles'),
+          
            
            fluidRow(
              column(3, sliderInput('predict_days', label = 'Days to predict ahead', min = 0, max = 14, step = 1, value = 0)),
