@@ -277,47 +277,8 @@ shinyServer(function(input, output) {
           
         }
         
-        # Find the best fit for the selected distribution
-        distribution_fit = resolution_dist_fit(cumulative_confirmed_vec = raw_data$Confirmed$case_counts,
-                                               cumulative_resolved_vec =raw_data$'Deaths + Recovered'$case_counts,
-                                               distribution = input$simulation_dist)
-        print(distribution_fit)
-        
-        
-        if(input$simulation_dist == 'Lognormal'){
-          
-          # argument_list = append(argument_list, list('distribution_func' = rlnorm,
-          #                      'meanlog' = log(input$mean_recovery_days), 'sdlog' = 1))
-          argument_list = append(argument_list, list(# 'distribution_func' = rlnorm,
-                                                     'distribution_cdf_func' = plnorm,
-                                                     'meanlog' = distribution_fit$par[1], 'sdlog' = distribution_fit$par[2]))
-          
-        }else if(input$simulation_dist == 'Exponential'){
-          
-          # argument_list = append(argument_list, list('distribution_func' = rexp, 'rate' = 1 / input$mean_recovery_days))
-          argument_list = append(argument_list, list(# 'distribution_func' = rexp,
-                                                     'distribution_cdf_func' = pexp,
-                                                     'rate' = distribution_fit$par[1]))
-          
-        }else if(input$simulation_dist == 'Poisson'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rpois,
-                                                     'distribution_cdf_func' = ppois,
-                                                     'lambda' = distribution_fit$par[1]))
-          
-        }else if(input$simulation_dist == 'Weibull'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rweibull,
-                                                     'distribution_cdf_func' = pweibull,
-                                                     'shape' = distribution_fit$par[1], 'scale' = distribution_fit$par[2]))
-          
-        }else if(input$simulation_dist == 'Negative Binomial'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rnbinom,
-                                                     'distribution_cdf_func' = pnbinom,
-                                                     'size' = distribution_fit$par[1], 'mu' = distribution_fit$par[2]))
-          
-        }
+        # Find the best fit distribution parameters for the selected distribution for resolution data
+        argument_list = append(argument_list, distribution_fitter()[['distribution_parameters']])
         
         # Simulate the resolution data with the specified distribution and arguments
         # resolution_vec = do.call(resolution_simulation, argument_list)
