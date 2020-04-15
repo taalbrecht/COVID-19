@@ -145,7 +145,6 @@ shinyServer(function(input, output) {
     # Convert to vector of selected positions
     valid_values = which(valid_values)
     
-    
     X = valid_values
     Y = plot_dat[valid_values]
     
@@ -172,6 +171,58 @@ shinyServer(function(input, output) {
                 'model' = mod,
                 'fitted_values' = fitted_values,
                 'predictions' = predictions))
+    
+  })
+  
+  
+  distribution_fitter <- reactive({
+    
+    raw_data = summarize_subsets()
+    
+    # Find the best fit for the selected distribution
+    distribution_fit = resolution_dist_fit(cumulative_confirmed_vec = raw_data$Confirmed$case_counts,
+                                           cumulative_resolved_vec =raw_data$'Deaths + Recovered'$case_counts,
+                                           distribution = input$simulation_dist)
+    print(distribution_fit)
+    
+    # Create percentiles for quantile vector display
+    plot_percentiles = c(0.05, 0.25, 0.5, 0.75, 0.95)
+    
+    if(input$simulation_dist == 'Lognormal'){
+      
+      argument_list = list('distribution_cdf_func' = plnorm, 'meanlog' = distribution_fit$par[1], 'sdlog' = distribution_fit$par[2])
+      
+      quantiles = qlnorm(plot_percentiles, meanlog=distribution_fit$par[1], sdlog=distribution_fit$par[2])
+      
+    }else if(input$simulation_dist == 'Exponential'){
+      
+      argument_list = list('distribution_cdf_func' = pexp, 'rate' = distribution_fit$par[1])
+      
+      quantiles = qexp(plot_percentiles, rate=distribution_fit$par[1])
+      
+    }else if(input$simulation_dist == 'Poisson'){
+      
+      argument_list = list('distribution_cdf_func' = ppois, 'lambda' = distribution_fit$par[1])
+      
+      quantiles = qpois(plot_percentiles, lambda=distribution_fit$par[1])
+      
+    }else if(input$simulation_dist == 'Weibull'){
+      
+      argument_list = list('distribution_cdf_func' = pweibull, 'shape' = distribution_fit$par[1], 'scale' = distribution_fit$par[2])
+      
+      quantiles = qweibull(plot_percentiles, shape=distribution_fit$par[1], scale=distribution_fit$par[2])
+      
+    }else if(input$simulation_dist == 'Negative Binomial'){
+      
+      argument_list = list('distribution_cdf_func' = pnbinom, 'size' = distribution_fit$par[1], 'mu' = distribution_fit$par[2])
+      
+      quantiles = qnbinom(plot_percentiles, size=distribution_fit$par[1], mu=distribution_fit$par[2])
+      
+    }
+    
+    quantiles = data.frame('percentile' = plot_percentiles, 'quantile' = quantiles)
+    
+    return(list('distribution_parameters' = argument_list, 'quantiles' = quantiles))
     
   })
   
@@ -226,51 +277,15 @@ shinyServer(function(input, output) {
           
         }
         
-        # Find the best fit for the selected distribution
-        distribution_fit = resolution_dist_fit(cumulative_confirmed_vec = raw_data$Confirmed$case_counts,
-                                               cumulative_resolved_vec =raw_data$'Deaths + Recovered'$case_counts,
-                                               distribution = input$simulation_dist)
-        print(distribution_fit)
-        
-        if(input$simulation_dist == 'Lognormal'){
-          
-          # argument_list = append(argument_list, list('distribution_func' = rlnorm,
-          #                      'meanlog' = log(input$mean_recovery_days), 'sdlog' = 1))
-          argument_list = append(argument_list, list(# 'distribution_func' = rlnorm,
-                                                     'distribution_cdf_func' = plnorm,
-                                                     'meanlog' = distribution_fit$par[1], 'sdlog' = distribution_fit$par[2]))
-        }else if(input$simulation_dist == 'Exponential'){
-          
-          # argument_list = append(argument_list, list('distribution_func' = rexp, 'rate' = 1 / input$mean_recovery_days))
-          argument_list = append(argument_list, list(# 'distribution_func' = rexp,
-                                                     'distribution_cdf_func' = pexp,
-                                                     'rate' = distribution_fit$par[1]))
-          
-        }else if(input$simulation_dist == 'Poisson'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rpois,
-                                                     'distribution_cdf_func' = ppois,
-                                                     'lambda' = distribution_fit$par[1]))
-        }else if(input$simulation_dist == 'Weibull'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rweibull,
-                                                     'distribution_cdf_func' = pweibull,
-                                                     'shape' = distribution_fit$par[1], 'scale' = distribution_fit$par[2]))
-        }else if(input$simulation_dist == 'Negative Binomial'){
-          
-          argument_list = append(argument_list, list(# 'distribution_func' = rnbinom,
-                                                     'distribution_cdf_func' = pnbinom,
-                                                     'size' = distribution_fit$par[1], 'mu' = distribution_fit$par[2]))
-        }
+        # Find the best fit distribution parameters for the selected distribution for resolution data
+        argument_list = append(argument_list, distribution_fitter()[['distribution_parameters']])
         
         # Simulate the resolution data with the specified distribution and arguments
         # resolution_vec = do.call(resolution_simulation, argument_list)
         resolution_vec = do.call(resolution_predict, argument_list)
         # Set all values less than 0.5 to 0 to preserve lower limit auto-scaling in plotly when using log scale
         resolution_vec[resolution_vec < 0.5] = 0
-        
-        browser()
-        
+
         fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = resolution_vec, name = 'Simulated Resolution', mode = 'lines', line = list(dash = 'dash'))
         fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = argument_list$cumulative_confirmed_vec - resolution_vec, name = 'Simulated Active', mode = 'lines', line = list(dash = 'dot'))
         
@@ -287,6 +302,16 @@ shinyServer(function(input, output) {
                     xaxis = list(title = 'Date'))
       
     }
+  })
+  
+  output$resolution_time_quantiles <- renderTable({
+    
+    
+    quantile_table = distribution_fitter()[['quantiles']]
+    
+    
+    return(quantile_table)
+    
   })
   
   output$log_plot_cases <- renderPlotly({

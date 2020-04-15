@@ -36,15 +36,17 @@ shinyUI(fluidPage(
            
            hr(),
            fluidRow(
-             column(3, checkboxInput('y_log_scale_data', label = 'Apply log scaling to y-axis', value = FALSE)),
-             column(3, checkboxInput('simulate_recovery_data', label = 'Simulate resolution data', value = FALSE)),
-             column(3, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Weibull", "Lognormal", "Exponential", "Poisson", "Negative Binomial"), selected = "Weibull")),
-             column(3, numericInput('mean_recovery_days', label = 'Mean time to recovery for simulation', value = 21)),
+             column(4, checkboxInput('y_log_scale_data', label = 'Apply log scaling to y-axis', value = FALSE)),
+             column(4, checkboxInput('simulate_recovery_data', label = 'Simulate resolution data', value = FALSE)),
+             column(4, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Weibull", "Lognormal", "Exponential", "Poisson", "Negative Binomial"), selected = "Weibull")),
            ),
            
            h3("Plot of new cases for the selected region(s)."),
            plotlyOutput("obs_data_plot"),
            
+           h3("Fitted resolution time quantiles (in days) based on selected resolution distribution"),
+           tableOutput('resolution_time_quantiles'),
+          
            
            fluidRow(
              column(3, sliderInput('predict_days', label = 'Days to predict ahead', min = 0, max = 14, step = 1, value = 0)),
