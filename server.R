@@ -251,11 +251,20 @@ shinyServer(function(input, output) {
     }else{
       
       # Create figure format
-      fig <- plot_ly(type = 'scatter', mode = 'none')
+      if(input$obs_daily_new){
+        fig <- plot_ly(type = 'bar', mode = 'none')
+      }else{
+        fig <- plot_ly(type = 'scatter', mode = 'none')
+      }
       
       # Loop through all entries in raw_data list and add them to the plot
       for(i in 1:length(raw_data)){
-        fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates, y = raw_data[[i]]$case_counts, name = names(raw_data)[i], fill = 'tozeroy')
+        
+        if(input$obs_daily_new){
+          fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates[-c(1)], y = diff(raw_data[[i]]$case_counts), name = names(raw_data)[i], fill = 'tozeroy')  
+        }else{
+          fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates, y = raw_data[[i]]$case_counts, name = names(raw_data)[i], fill = 'tozeroy')  
+        }
       }
       
       # If recovery data should be simulated, add it
@@ -285,9 +294,14 @@ shinyServer(function(input, output) {
         resolution_vec = do.call(resolution_predict, argument_list)
         # Set all values less than 0.5 to 0 to preserve lower limit auto-scaling in plotly when using log scale
         resolution_vec[resolution_vec < 0.5] = 0
-
-        fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = resolution_vec, name = 'Simulated Resolution', mode = 'lines', line = list(dash = 'dash'))
-        fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = argument_list$cumulative_confirmed_vec - resolution_vec, name = 'Simulated Active', mode = 'lines', line = list(dash = 'dot'))
+        
+        if(input$obs_daily_new){
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates[-c(1)], y = diff(resolution_vec), name = 'Simulated Resolution', type = 'scatter', mode = 'lines', line = list(dash = 'dash'))
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates[-c(1)], y = diff(argument_list$cumulative_confirmed_vec - resolution_vec), name = 'Simulated Active', type = 'scatter', mode = 'lines', line = list(dash = 'dot'))
+        }else{
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = resolution_vec, name = 'Simulated Resolution', mode = 'lines', line = list(dash = 'dash'))
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = argument_list$cumulative_confirmed_vec - resolution_vec, name = 'Simulated Active', mode = 'lines', line = list(dash = 'dot'))
+        }
         
       }
       
