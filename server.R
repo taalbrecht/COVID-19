@@ -251,11 +251,20 @@ shinyServer(function(input, output) {
     }else{
       
       # Create figure format
-      fig <- plot_ly(type = 'scatter', mode = 'none')
+      if(input$obs_daily_new){
+        fig <- plot_ly(type = 'bar', mode = 'none')
+      }else{
+        fig <- plot_ly(type = 'scatter', mode = 'none')
+      }
       
       # Loop through all entries in raw_data list and add them to the plot
       for(i in 1:length(raw_data)){
-        fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates, y = raw_data[[i]]$case_counts, name = names(raw_data)[i], fill = 'tozeroy')
+        
+        if(input$obs_daily_new){
+          fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates[-c(1)], y = diff(raw_data[[i]]$case_counts), name = names(raw_data)[i], fill = 'tozeroy')  
+        }else{
+          fig <- fig %>% add_trace(x = raw_data[[i]]$formatted_dates, y = raw_data[[i]]$case_counts, name = names(raw_data)[i], fill = 'tozeroy')  
+        }
       }
       
       # If recovery data should be simulated, add it
@@ -285,9 +294,14 @@ shinyServer(function(input, output) {
         resolution_vec = do.call(resolution_predict, argument_list)
         # Set all values less than 0.5 to 0 to preserve lower limit auto-scaling in plotly when using log scale
         resolution_vec[resolution_vec < 0.5] = 0
-
-        fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = resolution_vec, name = 'Simulated Resolution', mode = 'lines', line = list(dash = 'dash'))
-        fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = argument_list$cumulative_confirmed_vec - resolution_vec, name = 'Simulated Active', mode = 'lines', line = list(dash = 'dot'))
+        
+        if(input$obs_daily_new){
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates[-c(1)], y = diff(resolution_vec), name = 'Simulated Resolution', type = 'scatter', mode = 'lines', line = list(dash = 'dash'))
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates[-c(1)], y = diff(argument_list$cumulative_confirmed_vec - resolution_vec), name = 'Simulated Active', type = 'scatter', mode = 'lines', line = list(dash = 'dot'))
+        }else{
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = resolution_vec, name = 'Simulated Resolution', mode = 'lines', line = list(dash = 'dash'))
+          fig <- fig %>% add_trace(x = raw_data$Confirmed$formatted_dates, y = argument_list$cumulative_confirmed_vec - resolution_vec, name = 'Simulated Active', mode = 'lines', line = list(dash = 'dot'))
+        }
         
       }
       
@@ -334,13 +348,27 @@ shinyServer(function(input, output) {
       # Initialize plot
       fig <- plot_ly(plot_df, x = ~date)
       
-      # Add raw data of entire series (it can be filtered in the javascript)
-      fig <- fig %>% add_trace(y = selected_dat$case_counts, x = selected_dat$formatted_dates, name = 'raw data', mode = 'markers', marker = list(color = 'red'))
-      
-      # Add model traces
-      fig <- fig %>% add_trace(y = ~fit, name = 'model_fit',mode = 'lines', line = list(color = 'blue'))
-      fig <- fig %>% add_trace(y = ~lwr, name = 'lower_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
-      fig <- fig %>% add_trace(y = ~upr, name = 'upper_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
+      if(input$obs_daily_new){
+        
+        # Add raw data of entire series (it can be filtered in the javascript)
+        fig <- fig %>% add_trace(y = diff(selected_dat$case_counts), x = selected_dat$formatted_dates[-c(1)], name = 'raw data', type = 'bar', marker = list(color = 'red'))
+        
+        # Add model traces
+        fig <- fig %>% add_trace(y = diff(plot_df$fit), x = plot_df$date[-c(1)], name = 'model_fit', type = 'scatter', mode = 'lines', line = list(color = 'blue'))
+        fig <- fig %>% add_trace(y = diff(plot_df$lwr), x = plot_df$date[-c(1)], name = 'lower_CI', type = 'scatter', mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
+        fig <- fig %>% add_trace(y = diff(plot_df$upr), x = plot_df$date[-c(1)], name = 'upper_CI', type = 'scatter', mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
+        
+      }else{
+        
+        # Add raw data of entire series (it can be filtered in the javascript)
+        fig <- fig %>% add_trace(y = selected_dat$case_counts, x = selected_dat$formatted_dates, name = 'raw data', mode = 'markers', marker = list(color = 'red'))
+        
+        # Add model traces
+        fig <- fig %>% add_trace(y = ~fit, name = 'model_fit',mode = 'lines', line = list(color = 'blue'))
+        fig <- fig %>% add_trace(y = ~lwr, name = 'lower_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
+        fig <- fig %>% add_trace(y = ~upr, name = 'upper_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(168, 216, 234, 0.5)', line = list(width = 0))
+        
+      }
       
       # Add predictions if they are requested
       if (!is.null(model_data$predictions)){
@@ -348,10 +376,19 @@ shinyServer(function(input, output) {
         pred_df = data.frame(model_data$predictions)
         pred_df$date = plot_df$date[nrow(plot_df)] + c(0:(nrow(pred_df)-1))
         
-        
-        fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~fit, name = 'pred_future',mode = 'lines')
-        fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~lwr, name = 'lower_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
-        fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~upr, name = 'upper_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
+        if(input$obs_daily_new){
+          
+          fig <- fig %>% add_trace(x = pred_df$date[-c(1)], y = diff(pred_df$fit), name = 'pred_future', type = 'scatter', mode = 'lines')
+          fig <- fig %>% add_trace(x = pred_df$date[-c(1)], y = diff(pred_df$lwr), name = 'lower_CI', type = 'scatter', mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
+          fig <- fig %>% add_trace(x = pred_df$date[-c(1)], y = diff(pred_df$upr), name = 'upper_CI', type = 'scatter', mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
+          
+        }else{
+          
+          fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~fit, name = 'pred_future',mode = 'lines')
+          fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~lwr, name = 'lower_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
+          fig <- fig %>% add_trace(data = pred_df, x = ~date, y = ~upr, name = 'upper_CI',mode = 'lines', fill='tonexty', fillcolor='rgba(234, 168, 216, 0.5)', line = list(width = 0))
+          
+        }
         
       }
       
