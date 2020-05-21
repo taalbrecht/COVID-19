@@ -256,50 +256,53 @@ resolution_dist_fit <- function(cumulative_confirmed_vec, cumulative_resolved_ve
   
   # Create function to calculate negative log likelihood of observed resolution data under the specified distribution
   log_lik_func = function(x){
+    
+    # Initialize a probability density matrix to store the pdf for new cases created on each day
+    density_matrix = matrix(data = 0, nrow=length(daily_new_cases), ncol = length(daily_new_cases))
+    
+    # Calculate the pdf for each day that has new confirmed cases and store it in the matrix (assuming the resolution would be reported on the next day)
+    for(i in 1:diff_length){
       
-      # Initialize a probability density matrix to store the pdf for new cases created on each day
-      density_matrix = matrix(data = 0, nrow=length(daily_new_cases), ncol = length(daily_new_cases))
-      
-      # Calculate the pdf for each day that has new confirmed cases and store it in the matrix (assuming the resolution would be reported on the next day)
-      for(i in 1:diff_length){
+      # If there are new cases, calculate the pdf for recovery date through the end of the dataset and enter it into the matrix
+      if(daily_new_cases[i] > 0){
         
-        # If there are new cases, calculate the pdf for recovery date through the end of the dataset and enter it into the matrix
-        if(daily_new_cases[i] > 0){
-          
-          # Calculate the probabiliy (cannot use exatly zero probability of recovery on the day of diagnosis due to returning Inf negative log likelihood, even though this would be consistent with model used in simulation section)
-          
-          if(distribution == 'Lognormal'){
-            density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(plnorm(c(0:(diff_length + 1 - i)), meanlog = x[1], sdlog = x[2]))
-            dof = diff_length - 2
-          } else if(distribution == 'Exponential'){
-            density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pexp(c(0:(diff_length + 1 - i)), rate = x[1]))
-            dof = diff_length - 1
-          } else if(distribution == 'Poisson'){
-            density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(ppois(c(0:(diff_length + 1 - i)), lambda = x[1]))
-            dof = diff_length - 1
-          } else if(distribution == 'Weibull'){
-            density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pweibull(c(0:(diff_length + 1 - i)), shape = x[1], scale = x[2]))
-            dof = diff_length - 2
-          } else if(distribution == 'Negative Binomial'){
-            density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pnbinom(c(0:(diff_length + 1 - i)), size = x[1], mu = x[2]))
-            dof = diff_length - 2
-          }
-          
+        # Calculate the probabiliy (cannot use exatly zero probability of recovery on the day of diagnosis due to returning Inf negative log likelihood, even though this would be consistent with model used in simulation section)
+        
+        if(distribution == 'Lognormal'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(plnorm(c(0:(diff_length + 1 - i)), meanlog = x[1], sdlog = x[2]))
+          dof = diff_length - 2
+        } else if(distribution == 'Exponential'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pexp(c(0:(diff_length + 1 - i)), rate = x[1]))
+          dof = diff_length - 1
+        } else if(distribution == 'Poisson'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(ppois(c(0:(diff_length + 1 - i)), lambda = x[1]))
+          dof = diff_length - 1
+        } else if(distribution == 'Weibull'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pweibull(c(0:(diff_length + 1 - i)), shape = x[1], scale = x[2]))
+          dof = diff_length - 2
+        } else if(distribution == 'Negative Binomial'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pnbinom(c(0:(diff_length + 1 - i)), size = x[1], mu = x[2]))
+          dof = diff_length - 2
+        } else if(distribution == 'Normal'){
+          density_matrix[i, i:diff_length] = daily_new_cases[i] * diff(pnorm(c(0:(diff_length + 1 - i)), mean = x[1], sd = x[2]))
+          dof = diff_length - 2
         }
         
       }
       
-      # Sum the density matrix by column and normalize by number of observations to create a pdf vector over the observed dataset
-      pdf_vec = colSums(density_matrix) / sum(daily_new_cases)
-      
-      # Account for the probability associated with all remaining unresolved cases
-      tail_prob = 1 - sum(pdf_vec)
-      
-      # Calculate log likelihood of recovery vector
-      log_likelihood = sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) + log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases))
-      # return( -sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) - log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases)))
-      return( -log_likelihood)
     }
+    
+    # Sum the density matrix by column and normalize by number of observations to create a pdf vector over the observed dataset
+    pdf_vec = colSums(density_matrix) / sum(daily_new_cases)
+    
+    # Account for the probability associated with all remaining unresolved cases
+    tail_prob = 1 - sum(pdf_vec)
+    
+    # Calculate log likelihood of recovery vector
+    log_likelihood = sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) + log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases))
+    # return( -sum(daily_resolved_cases * log(pdf_vec), na.rm = TRUE) - log(tail_prob) * (sum(daily_new_cases) - sum(daily_resolved_cases)))
+    return( -log_likelihood)
+  }
   
   # Set initial parameters for optimizer based on initial distribution
   if(distribution == 'Lognormal'){
@@ -326,6 +329,11 @@ resolution_dist_fit <- function(cumulative_confirmed_vec, cumulative_resolved_ve
   }else if(distribution == 'Negative Binomial'){
     initial_params = c(5, 21)
     names(initial_params) = c('size', 'mu')
+    # optim_lower_bound = 0
+    # optim_upper_bound = Inf
+  }else if(distribution == 'Normal'){
+    initial_params = c(4, 1)
+    names(initial_params) = c('mean', 'sd')
     # optim_lower_bound = 0
     # optim_upper_bound = Inf
   }

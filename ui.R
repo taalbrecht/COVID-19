@@ -39,7 +39,7 @@ shinyUI(fluidPage(
              column(3, checkboxInput('obs_daily_new', label = 'Plot as new by day', value = FALSE)),
              column(3, checkboxInput('y_log_scale_data', label = 'Apply log scaling to y-axis', value = FALSE)),
              column(3, checkboxInput('simulate_recovery_data', label = 'Simulate resolution data', value = FALSE)),
-             column(3, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Weibull", "Lognormal", "Exponential", "Poisson", "Negative Binomial"), selected = "Weibull")),
+             column(3, selectInput('simulation_dist', label = 'Distribution to simulate recovery time', choices = c("Weibull", "Lognormal", "Exponential", "Poisson", "Negative Binomial", "Normal"), selected = "Weibull")),
            ),
            
            h3("Plot of new cases for the selected region(s)."),

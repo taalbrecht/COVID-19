@@ -218,6 +218,12 @@ shinyServer(function(input, output) {
       
       quantiles = qnbinom(plot_percentiles, size=distribution_fit$par[1], mu=distribution_fit$par[2])
       
+    }else if(input$simulation_dist == 'Normal'){
+      
+      argument_list = list('distribution_cdf_func' = pnorm, 'mean' = distribution_fit$par[1], 'sd' = distribution_fit$par[2])
+      
+      quantiles = qnorm(plot_percentiles, mean=distribution_fit$par[1], sd=distribution_fit$par[2])
+      
     }
     
     quantiles = data.frame('percentile' = plot_percentiles, 'quantile' = quantiles)
